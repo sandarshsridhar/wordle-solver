@@ -1,0 +1,20 @@
+{
+  "name": "wordle-solver",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "code that solves hihgly popular game called 'wordle'",
+  "main": "wordle.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "sandarsh.sridhar94",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "17.0.21",
+    "@types/prompt-sync": "4.1.1"
+  },
+  "dependencies": {
+    "chalk": "5.0.0",
+    "prompt-sync": "4.1.6"
+  }
+}
