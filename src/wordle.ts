@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as readline from 'readline';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
+const prompt = require('prompt-sync')({ sigint: true });
 import chalk from 'chalk';
 
 enum LetterGuessResult {
@@ -166,42 +167,6 @@ const printResult = (result: [number, string]) => {
     }
 }
 
-function* runWordle() {
-    const wordleWord = WORDS_LIST[Math.floor(Math.random() * WORDS_LIST.length)];
-    const usedLetters = new Set<string>();
-    const guesses: Array<Array<LetterGuessResult>> = [];
-
-    let i = 1;
-    while (i < 7) {
-        const prompt = require('prompt-sync')({ sigint: true });
-
-        try {
-            const guess: string = prompt(`Make your guess #${i}: `);
-            const guessResult = checkWord(guess.toLowerCase(), wordleWord);
-
-            guess.split('').forEach(l => usedLetters.add(l.toUpperCase()));
-
-            printGuess(guess, guessResult);
-            guesses.push(guessResult);
-            console.log(`Used Letters: ${chalk.rgb(0, 255, 255).bold([...usedLetters].join(' '))} `);
-
-            if (guessResult.every(l => l === LetterGuessResult.Green)) {
-                break;
-            }
-
-            yield guessResult;
-        } catch (error: any) {
-            console.log(error.message);
-            console.log(`Used Letters: ${chalk.rgb(0, 255, 255).bold([...usedLetters].join(' '))} `);
-            i--;
-        }
-        i++;
-    }
-    printGuessDistribution(guesses);
-
-    printResult([i, wordleWord]);
-}
-
 const processGreens = (greens: Array<LetterIndexMap>, words: Array<string>) => {
     let reducedWords = words;
 
@@ -262,17 +227,68 @@ const reducePossibleWords = (guessedWord: string, guessResult: Array<LetterGuess
     return reducedWords;
 }
 
-const playWordle = async (): Promise<[number, string]> => {
-    await initWordsList();
-
-    const wordleWord = WORDS_LIST[Math.floor(Math.random() * WORDS_LIST.length)];
+function* runWordle(wordleWord?: string) {
+    wordleWord = wordleWord || WORDS_LIST[Math.floor(Math.random() * WORDS_LIST.length)];
     const usedLetters = new Set<string>();
     const guesses: Array<Array<LetterGuessResult>> = [];
 
     let i = 1;
     while (i < 7) {
-        const prompt = require('prompt-sync')({ sigint: true });
+        try {
+            const guess: string = prompt(`Make your guess #${i}: `);
+            const guessResult = checkWord(guess.toLowerCase(), wordleWord.toLowerCase());
 
+            guess.split('').forEach(l => usedLetters.add(l.toUpperCase()));
+
+            printGuess(guess, guessResult);
+            guesses.push(guessResult);
+            console.log(`Used Letters: ${chalk.rgb(0, 255, 255).bold([...usedLetters].join(' '))} `);
+
+            if (guessResult.every(l => l === LetterGuessResult.Green)) {
+                break;
+            }
+
+            yield guessResult;
+        } catch (error: any) {
+            console.log(error.message);
+            console.log(`Used Letters: ${chalk.rgb(0, 255, 255).bold([...usedLetters].join(' '))} `);
+            i--;
+        }
+        i++;
+    }
+    printGuessDistribution(guesses);
+
+    printResult([i, wordleWord]);
+}
+
+const solveWordle = async () => {
+    await initWordsList();
+
+    const wordleWord = prompt.hide(`Ask your friend to enter a 5 letter word secretly 😉 or press enter for a random word: `);
+    const bestFirstGuesses = ['adieu', 'tears', 'audio', 'canoe', 'roast', 'ratio', 'arise', 'tares', 'stare'];
+    let wordleGuess = bestFirstGuesses[Math.floor(Math.random() * bestFirstGuesses.length)];
+
+    console.log(`\nGuess this word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
+    let filteredWords: Array<string> = WORDS_LIST.filter(w => w !== wordleGuess);
+
+    for await (const guess of runWordle(wordleWord)) {
+        filteredWords = reducePossibleWords(wordleGuess, guess, filteredWords);
+
+        console.log(`Remaining possible words: ${filteredWords.length}`);
+        wordleGuess = filteredWords[Math.floor(Math.random() * filteredWords.length)];
+        console.log(`\nGuess this word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
+    }
+}
+
+const playWordle = async (): Promise<[number, string]> => {
+    await initWordsList();
+
+    const wordleWord = prompt.hide(`Ask your friend to enter a 5 letter word secretly 😉: `);
+    const usedLetters = new Set<string>();
+    const guesses: Array<Array<LetterGuessResult>> = [];
+
+    let i = 1;
+    while (i < 7) {
         try {
             const guess: string = prompt(`Make your guess #${i}: `);
             const guessResult = checkWord(guess.toLowerCase(), wordleWord);
@@ -297,23 +313,7 @@ const playWordle = async (): Promise<[number, string]> => {
 
     return [i, wordleWord];
 }
-const solveWordle = async () => {
-    await initWordsList();
 
-    const bestFirstGuesses = ['adieu', 'tears', 'audio', 'canoe', 'roast', 'ratio', 'arise', 'tares', 'stare'];
-    let wordleGuess = bestFirstGuesses[Math.floor(Math.random() * bestFirstGuesses.length)];
-
-    console.log(`\nGuess this word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
-    let filteredWords: Array<string> = WORDS_LIST.filter(w => w !== wordleGuess);
-
-    for await (const guess of runWordle()) {
-        filteredWords = reducePossibleWords(wordleGuess, guess, filteredWords);
-
-        console.log(`Remaining possible words: ${filteredWords.length}`);
-        wordleGuess = filteredWords[Math.floor(Math.random() * filteredWords.length)];
-        console.log(`\nGuess this word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
-    }
-}
 
 solveWordle();
 
