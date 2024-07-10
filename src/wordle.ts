@@ -248,7 +248,10 @@ function* runWordle(wordleWord?: string) {
                 break;
             }
 
-            yield guessResult;
+            yield {
+                guess,
+                guessResult
+            };
         } catch (error: any) {
             console.log(error.message);
             console.log(`Used Letters: ${chalk.rgb(0, 255, 255).bold([...usedLetters].join(' '))} `);
@@ -264,15 +267,23 @@ function* runWordle(wordleWord?: string) {
 const solveWordle = async () => {
     await initWordsList();
 
-    const wordleWord = prompt.hide(`Ask your friend to enter a 5 letter word secretly 😉 or press enter for a random word: `);
+    let wordleWord = prompt.hide(`Ask your friend to enter a 5 letter word secretly 😉 or press enter for a random word: `);
+
+    if (wordleWord && !WORDS_LIST.includes(wordleWord.toLowerCase())){
+        console.error('Not a valid 5-letter word!');
+        await solveWordle();
+
+        return;
+    }
+
     const bestFirstGuesses = ['adieu', 'tears', 'audio', 'canoe', 'roast', 'ratio', 'arise', 'tares', 'stare'];
     let wordleGuess = bestFirstGuesses[Math.floor(Math.random() * bestFirstGuesses.length)];
 
     console.log(`\nGuess this word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
     let filteredWords: Array<string> = WORDS_LIST.filter(w => w !== wordleGuess);
 
-    for await (const guess of runWordle(wordleWord)) {
-        filteredWords = reducePossibleWords(wordleGuess, guess, filteredWords);
+    for await (const { guess, guessResult } of runWordle(wordleWord)) {
+        filteredWords = reducePossibleWords(guess, guessResult, filteredWords);
 
         console.log(`Remaining possible words: ${filteredWords.length}`);
         wordleGuess = filteredWords[Math.floor(Math.random() * filteredWords.length)];
@@ -283,7 +294,20 @@ const solveWordle = async () => {
 const playWordle = async (): Promise<[number, string]> => {
     await initWordsList();
 
-    const wordleWord = prompt.hide(`Ask your friend to enter a 5 letter word secretly 😉: `);
+    let wordleWord: string | null = null;
+
+    while (!wordleWord) {
+        let inputWord = prompt.hide(`Ask your friend to enter a 5 letter word secretly 😉 or press enter for a random word: `);
+        
+        if (inputWord && !WORDS_LIST.includes(inputWord.toLowerCase())) {
+            console.error('Not a valid 5-letter word!');
+        } else if (!inputWord) {
+            wordleWord = WORDS_LIST[Math.floor(Math.random() * WORDS_LIST.length)];
+        } else {
+            wordleWord = inputWord;
+        }
+    }
+
     const usedLetters = new Set<string>();
     const guesses: Array<Array<LetterGuessResult>> = [];
 
