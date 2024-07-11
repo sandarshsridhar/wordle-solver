@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "chalk": "^5.0.0",
+    "got": "14.4.1",
     "prompt-sync": "^4.1.6"
   }
 }

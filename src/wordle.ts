@@ -17,10 +17,15 @@ type LetterIndexMap = {
     index: number
 }
 
-const WORDS_LIST: Array<string> = [];
+type Word = {
+    word: string,
+    rank: number
+}
+
+const GLOBAL_WORD_RANKS: Array<Word> = [];
 
 const initWordsList = async () => {
-    const readStream = fs.createReadStream('data/five_lettered_words.txt');
+    const readStream = fs.createReadStream('data/word-ranks.txt');
 
     const rl = readline.createInterface({
         input: readStream,
@@ -28,25 +33,29 @@ const initWordsList = async () => {
         crlfDelay: Infinity
     });
 
-    for await (const word of rl) {
-        WORDS_LIST.push(word);
+    for await (const line of rl) {
+        const wordRank = line.split(':');
+        GLOBAL_WORD_RANKS.push({
+            word: wordRank[0],
+            rank: Number(wordRank[1].trim()),
+        });
     }
 
     readStream.close();
     rl.close();
 
-    let currentIndex = WORDS_LIST.length, randomIndex;
+    let currentIndex = GLOBAL_WORD_RANKS.length, randomIndex;
 
     while (currentIndex != 0) {
         randomIndex = Math.floor(Math.random() * currentIndex);
         currentIndex--;
 
-        [WORDS_LIST[currentIndex], WORDS_LIST[randomIndex]] = [WORDS_LIST[randomIndex], WORDS_LIST[currentIndex]];
+        [GLOBAL_WORD_RANKS[currentIndex], GLOBAL_WORD_RANKS[randomIndex]] = [GLOBAL_WORD_RANKS[randomIndex], GLOBAL_WORD_RANKS[currentIndex]];
     }
 }
 
 const checkWord = (guess: string, wordle: string): Array<LetterGuessResult> => {
-    if (!WORDS_LIST.includes(guess))
+    if (!GLOBAL_WORD_RANKS.find(w => w.word === guess))
         throw new Error('Not a word!');
 
     const wordGuessResult: Array<number> = [
@@ -167,42 +176,42 @@ const printResult = (result: [number, string]) => {
     }
 }
 
-const processGreens = (greens: Array<LetterIndexMap>, words: Array<string>) => {
+const processGreens = (greens: Array<LetterIndexMap>, words: Array<Word>) => {
     let reducedWords = words;
 
     greens.forEach(map => {
-        reducedWords = reducedWords.filter(word => word[map.index] === map.letter);
+        reducedWords = reducedWords.filter(wr => wr.word[map.index] === map.letter);
     });
 
     return reducedWords;
 }
 
-const processYellows = (yellows: Array<LetterIndexMap>, words: Array<string>) => {
+const processYellows = (yellows: Array<LetterIndexMap>, words: Array<Word>) => {
     let reducedWords = words;
 
     yellows.forEach(map => {
-        reducedWords = reducedWords.filter(word => word.includes(map.letter) && word[map.index] !== map.letter);
+        reducedWords = reducedWords.filter(wr => wr.word.includes(map.letter) && wr.word[map.index] !== map.letter);
     });
 
     return reducedWords;
 }
 
-const processWhites = (whites: Array<LetterIndexMap>, words: Array<string>, greens: Array<LetterIndexMap>, yellows: Array<LetterIndexMap>) => {
+const processWhites = (whites: Array<LetterIndexMap>, words: Array<Word>, greens: Array<LetterIndexMap>, yellows: Array<LetterIndexMap>) => {
     let reducedWords = words;
 
     const isLetterUsed = (letter: string, array: Array<LetterIndexMap>): boolean => array.some(l => l.letter === letter);
     whites.forEach(whiteMap => {
         if (isLetterUsed(whiteMap.letter, greens) || isLetterUsed(whiteMap.letter, yellows)) {
-            reducedWords = reducedWords.filter(word => word[whiteMap.index] !== whiteMap.letter);
+            reducedWords = reducedWords.filter(wr => wr.word[whiteMap.index] !== whiteMap.letter);
         } else {
-            reducedWords = reducedWords.filter(word => !word.includes(whiteMap.letter));
+            reducedWords = reducedWords.filter(wr => !wr.word.includes(whiteMap.letter));
         }
     });
 
     return reducedWords;
 }
 
-const reducePossibleWords = (guessedWord: string, guessResult: Array<LetterGuessResult>, filteredWords: Array<string>): Array<string> => {
+const reducePossibleWords = (guessedWord: string, guessResult: Array<LetterGuessResult>, filteredWords: Array<Word>): Array<Word> => {
     let reducedWords = filteredWords;
 
     const greens: Array<LetterIndexMap> = [];
@@ -228,7 +237,7 @@ const reducePossibleWords = (guessedWord: string, guessResult: Array<LetterGuess
 }
 
 function* runWordle(wordleWord?: string) {
-    wordleWord = wordleWord || WORDS_LIST[Math.floor(Math.random() * WORDS_LIST.length)];
+    wordleWord = wordleWord || GLOBAL_WORD_RANKS[Math.floor(Math.random() * GLOBAL_WORD_RANKS.length)].word;
     const usedLetters = new Set<string>();
     const guesses: Array<Array<LetterGuessResult>> = [];
 
@@ -269,24 +278,25 @@ const solveWordle = async () => {
 
     let wordleWord = prompt.hide(`Ask your friend to enter a 5 letter word secretly 😉 or press enter for a random word: `);
 
-    if (wordleWord && !WORDS_LIST.includes(wordleWord.toLowerCase())){
+    if (wordleWord && !GLOBAL_WORD_RANKS.find(wr => wr.word === wordleWord.toLowerCase())) {
         console.error('Not a valid 5-letter word!');
         await solveWordle();
 
         return;
     }
 
-    const bestFirstGuesses = ['adieu', 'tears', 'audio', 'canoe', 'roast', 'ratio', 'arise', 'tares', 'stare'];
-    let wordleGuess = bestFirstGuesses[Math.floor(Math.random() * bestFirstGuesses.length)];
+    // const bestFirstGuesses = ['adieu', 'tears', 'audio', 'canoe', 'roast', 'ratio', 'arise', 'tares', 'stare'];
+    // let wordleGuess = bestFirstGuesses[Math.floor(Math.random() * bestFirstGuesses.length)];
+    let wordleGuess = 'adieu'; // The best word to start with statistically!
 
     console.log(`\nGuess this word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
-    let filteredWords: Array<string> = WORDS_LIST.filter(w => w !== wordleGuess);
+    let filteredWords = GLOBAL_WORD_RANKS.filter(wr => wr.word !== wordleGuess);
 
     for await (const { guess, guessResult } of runWordle(wordleWord)) {
-        filteredWords = reducePossibleWords(guess, guessResult, filteredWords);
+        filteredWords = reducePossibleWords(guess, guessResult, filteredWords).sort((a, b) => b.rank - a.rank);
 
-        console.log(`Remaining possible words: ${filteredWords.length}`);
-        wordleGuess = filteredWords[Math.floor(Math.random() * filteredWords.length)];
+        console.log(`Remaining possible words: ${filteredWords.length > 10 ? filteredWords.length : filteredWords.map(wr => wr.word.toUpperCase()).join(', ')}`);
+        wordleGuess = filteredWords[0].word;
         console.log(`\nGuess this word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
     }
 }
@@ -298,11 +308,11 @@ const playWordle = async (): Promise<[number, string]> => {
 
     while (!wordleWord) {
         let inputWord = prompt.hide(`Ask your friend to enter a 5 letter word secretly 😉 or press enter for a random word: `);
-        
-        if (inputWord && !WORDS_LIST.includes(inputWord.toLowerCase())) {
+
+        if (inputWord && !GLOBAL_WORD_RANKS.find(wr => wr.word === inputWord.toLowerCase())) {
             console.error('Not a valid 5-letter word!');
         } else if (!inputWord) {
-            wordleWord = WORDS_LIST[Math.floor(Math.random() * WORDS_LIST.length)];
+            wordleWord = GLOBAL_WORD_RANKS[Math.floor(Math.random() * GLOBAL_WORD_RANKS.length)].word;
         } else {
             wordleWord = inputWord;
         }
