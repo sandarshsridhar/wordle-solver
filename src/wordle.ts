@@ -236,8 +236,7 @@ const reducePossibleWords = (guessedWord: string, guessResult: Array<LetterGuess
     return reducedWords;
 }
 
-function* runWordle(wordleWord?: string) {
-    wordleWord = wordleWord || GLOBAL_WORD_RANKS[Math.floor(Math.random() * GLOBAL_WORD_RANKS.length)].word;
+function* runWordle(wordleWord: string) {
     const usedLetters = new Set<string>();
     const guesses: Array<Array<LetterGuessResult>> = [];
 
@@ -276,13 +275,18 @@ function* runWordle(wordleWord?: string) {
 const solveWordle = async () => {
     await initWordsList();
 
-    let wordleWord = prompt.hide(`Ask your friend to enter a 5 letter word secretly 😉 or press enter for a random word: `);
+    let wordleWord: string | null = null;
 
-    if (wordleWord && !GLOBAL_WORD_RANKS.find(wr => wr.word === wordleWord.toLowerCase())) {
-        console.error('Not a valid 5-letter word!');
-        await solveWordle();
+    while (!wordleWord) {
+        let inputWord = prompt.hide(`Ask your friend to enter a 5 letter word secretly 😉 or press enter for a random word: `);
 
-        return;
+        if (inputWord && !GLOBAL_WORD_RANKS.find(wr => wr.word === inputWord.toLowerCase())) {
+            console.error('Not a valid 5-letter word!');
+        } else if (!inputWord) {
+            wordleWord = GLOBAL_WORD_RANKS[Math.floor(Math.random() * GLOBAL_WORD_RANKS.length)].word;
+        } else {
+            wordleWord = inputWord;
+        }
     }
 
     // const bestFirstGuesses = ['adieu', 'tears', 'audio', 'canoe', 'roast', 'ratio', 'arise', 'tares', 'stare'];
@@ -299,6 +303,97 @@ const solveWordle = async () => {
         wordleGuess = filteredWords[0].word;
         console.log(`\nGuess this word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
     }
+}
+
+const autoSolveWordle = async () => {
+    await initWordsList();
+
+    let wordleWord: string | null = null;
+
+    while (!wordleWord) {
+        let inputWord = prompt.hide(`Ask your friend to enter a 5 letter word secretly 😉: `);
+
+        if (!inputWord || !GLOBAL_WORD_RANKS.find(wr => wr.word === inputWord.toLowerCase())) {
+            console.error('Not a valid 5-letter word!');
+        } else {
+            wordleWord = inputWord;
+        }
+    }
+
+    let wordleGuess = 'adieu';
+    const usedLetters = new Set<string>();
+    const guesses: Array<Array<LetterGuessResult>> = [];
+
+    console.log(`\nGuessing this word first as it is statistically the strongest first word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
+    let filteredWords = GLOBAL_WORD_RANKS.filter(wr => wr.word !== wordleGuess);
+
+    let i = 1;
+    while (i < 7) {
+        try {
+            const guessResult = checkWord(wordleGuess.toLowerCase(), wordleWord.toLowerCase());
+
+            wordleGuess.split('').forEach(l => usedLetters.add(l.toUpperCase()));
+
+            printGuess(wordleGuess, guessResult);
+            guesses.push(guessResult);
+            console.log(`Used Letters: ${chalk.rgb(0, 255, 255).bold([...usedLetters].join(' '))} `);
+
+            if (guessResult.every(l => l === LetterGuessResult.Green)) {
+                break;
+            }
+
+            filteredWords = reducePossibleWords(wordleGuess, guessResult, filteredWords).sort((a, b) => b.rank - a.rank);
+            console.log(`Remaining possible words: ${filteredWords.length > 10 ? filteredWords.length : filteredWords.map(wr => wr.word.toUpperCase()).join(', ')}`);
+            wordleGuess = filteredWords[0].word;
+
+            await new Promise<void>((r) => setTimeout(r, 1000));
+
+            console.log(`\nGuessing the next most probable word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
+        } catch (error: any) {
+            console.log(error.message);
+            console.log(`Used Letters: ${chalk.rgb(0, 255, 255).bold([...usedLetters].join(' '))} `);
+            i--;
+        }
+        i++;
+    }
+    printGuessDistribution(guesses);
+
+    printResult([i, wordleWord]);
+}
+
+const autoSolveWordleVanilla = (inputWord: string): number => {
+    let wordleWord: string | null = null;
+
+    if (!inputWord || !GLOBAL_WORD_RANKS.find(wr => wr.word === inputWord.toLowerCase())) {
+        throw new Error(`${inputWord} is not a valid 5-letter word!`);
+    } else {
+        wordleWord = inputWord;
+    }
+
+    let wordleGuess = 'adieu';
+    const usedLetters = new Set<string>();
+    const guesses: Array<Array<LetterGuessResult>> = [];
+
+    let filteredWords = GLOBAL_WORD_RANKS.filter(wr => wr.word !== wordleGuess);
+
+    let i = 1;
+    while (i < 7) {
+        try {
+            const guessResult = checkWord(wordleGuess.toLowerCase(), wordleWord.toLowerCase());
+            wordleGuess.split('').forEach(l => usedLetters.add(l.toUpperCase()));
+            guesses.push(guessResult);
+            if (guessResult.every(l => l === LetterGuessResult.Green)) {
+                break;
+            }
+            filteredWords = reducePossibleWords(wordleGuess, guessResult, filteredWords).sort((a, b) => b.rank - a.rank);
+            wordleGuess = filteredWords[0].word;
+        } catch (error: any) {
+            console.log(error.message);
+            i--;
+        }
+        i++;
+    }
+    return i;
 }
 
 const playWordle = async (): Promise<[number, string]> => {
@@ -322,7 +417,7 @@ const playWordle = async (): Promise<[number, string]> => {
     const guesses: Array<Array<LetterGuessResult>> = [];
 
     let i = 1;
-    while (i < 7) {
+    while (i < 13) {
         try {
             const guess: string = prompt(`Make your guess #${i}: `);
             const guessResult = checkWord(guess.toLowerCase(), wordleWord);
@@ -348,7 +443,65 @@ const playWordle = async (): Promise<[number, string]> => {
     return [i, wordleWord];
 }
 
+const getSolvabilityScore = async () => {
+    await initWordsList();
 
-solveWordle();
+    const solvabilityMap: {
+        [key: string]: {
+            turns: number,
+            outcome: boolean
+        }
+    } = {};
+
+    const readStream = fs.createReadStream('data/word-ranks.txt');
+    const rl = readline.createInterface({
+        input: readStream,
+        terminal: false,
+        crlfDelay: Infinity
+    });
+
+    for await (const word of rl) {
+        const result = autoSolveWordleVanilla(word.split(':')[0]);
+
+        solvabilityMap[word] = {
+            turns: result,
+            outcome: result < 7
+        };
+    }
+
+    readStream.close();
+    rl.close();
+
+    const solved = Object.values(solvabilityMap).filter(s => s.outcome);
+    const unsolved = Object.values(solvabilityMap).filter(s => !s.outcome);
+    const all = Object.values(solvabilityMap);
+
+    const report = {
+        solved: solved.length,
+        unsolved: unsolved.length,
+        averageGuessesToSolveToWin: (solved.reduce((acc, s) => acc + s.turns, 0) / solved.length).toFixed(2),
+        minimumGuessesToSolveToWin: Math.min(...solved.map(s => s.turns)),
+        maximumGuessesToSolveToWin: Math.max(...solved.map(s => s.turns)),
+        averageGuessesToSolve: (all.reduce((acc, s) => acc + s.turns, 0) / all.length).toFixed(2),
+        maximumGuessesToSolve: Math.max(...all.map(s => s.turns)),
+        guessToWinDistribution: {
+            1: solved.filter(s => s.turns === 1).length,
+            2: solved.filter(s => s.turns === 2).length,
+            3: solved.filter(s => s.turns === 3).length,
+            4: solved.filter(s => s.turns === 4).length,
+            5: solved.filter(s => s.turns === 5).length,
+            6: solved.filter(s => s.turns === 6).length
+        }
+    }
+
+    console.log(JSON.stringify(report, null, 2));
+}
+
+
+// solveWordle();
+
+// await autoSolveWordle();
 
 // printResult(await playWordle());
+
+await getSolvabilityScore();
