@@ -361,7 +361,7 @@ const autoSolveWordle = async () => {
     printResult([i, wordleWord]);
 }
 
-const autoSolveWordleVanilla = (inputWord: string): number => {
+const autoSolveWordleVanilla = (inputWord: string, wordleGuess: string = 'adieu'): number => {
     let wordleWord: string | null = null;
 
     if (!inputWord || !GLOBAL_WORD_RANKS.find(wr => wr.word === inputWord.toLowerCase())) {
@@ -370,7 +370,6 @@ const autoSolveWordleVanilla = (inputWord: string): number => {
         wordleWord = inputWord;
     }
 
-    let wordleGuess = 'adieu';
     const usedLetters = new Set<string>();
     const guesses: Array<Array<LetterGuessResult>> = [];
 
@@ -443,7 +442,7 @@ const playWordle = async (): Promise<[number, string]> => {
     return [i, wordleWord];
 }
 
-const getSolvabilityScore = async () => {
+const getSolvabilityScore = async (firstWord: string) => {
     await initWordsList();
 
     const solvabilityMap: {
@@ -461,7 +460,7 @@ const getSolvabilityScore = async () => {
     });
 
     for await (const word of rl) {
-        const result = autoSolveWordleVanilla(word.split(':')[0]);
+        const result = autoSolveWordleVanilla(word.split(':')[0], firstWord);
 
         solvabilityMap[word] = {
             turns: result,
@@ -494,14 +493,39 @@ const getSolvabilityScore = async () => {
         }
     }
 
-    console.log(JSON.stringify(report, null, 2));
+    return report;
 }
 
 
 // solveWordle();
 
-// await autoSolveWordle();
+await autoSolveWordle();
 
 // printResult(await playWordle());
 
-await getSolvabilityScore();
+// const firstWords = [
+//     'adieu',
+//     'crane',
+//     'arise',
+//     'stare',
+//     'trace',
+//     'about',
+//     'aisle',
+//     'media',
+//     'roast',
+//     'tales',
+//     'audio',
+//     'crate',
+//     'slate',
+//     'canoe',
+//     'cones',
+//     'least'
+// ];
+
+// for (const firstWord of firstWords) {
+//     console.log(`\nSolving for ${firstWord.toUpperCase()}`);
+//     const report = await getSolvabilityScore(firstWord);
+
+//     console.log(`\n\nSolvability Report for ${firstWord.toUpperCase()}`);
+//     console.log(JSON.stringify(report, null, 2));
+// }
