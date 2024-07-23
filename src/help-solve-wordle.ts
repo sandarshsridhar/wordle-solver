@@ -30,9 +30,10 @@ const helpSolveWordle = async () => {
     let wordleGuess = 'trace';
     let i = 1;
     let filteredWords = GLOBAL_WORD_RANKS.filter(wr => wr.word !== wordleGuess);
-    console.log(`\nGuess this word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
 
     while (i < 7) {
+        console.log(`\nGuess this word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
+
         const promptResult = prompt('Now, looking at your wordle result, enter G, Y, W for each letter where G is green, Y is yellow and W is white with NO spaces: ');
         const result = sanitizeResult(promptResult);
 
@@ -45,7 +46,8 @@ const helpSolveWordle = async () => {
 
         console.log(`Remaining possible words: ${filteredWords.length > 10 ? filteredWords.length : filteredWords.map(wr => wr.word.toUpperCase()).join(', ')}`);
         wordleGuess = filteredWords[0].word;
-        console.log(`\nGuess this word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
+
+        i++;
     }
 }
 

@@ -23,12 +23,16 @@ const autoSolveWordle = async () => {
     const usedLetters = new Set<string>();
     const guesses: Array<Array<LetterGuessResult>> = [];
 
-    console.log(`\nGuessing this word first as it is statistically the strongest first word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
     let filteredWords = GLOBAL_WORD_RANKS.filter(wr => wr.word !== wordleGuess);
 
     let i = 1;
     while (i < 7) {
         try {
+            if (i === 1) {
+                console.log(`\nGuessing this word first as it is statistically the strongest first word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
+            } else {
+                console.log(`\nGuessing the next most probable word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
+            }
             const guessResult = checkWord(wordleGuess.toLowerCase(), wordleWord.toLowerCase());
 
             wordleGuess.split('').forEach(l => usedLetters.add(l.toUpperCase()));
@@ -46,8 +50,6 @@ const autoSolveWordle = async () => {
             wordleGuess = filteredWords[0].word;
 
             await new Promise<void>((r) => setTimeout(r, 1000));
-
-            console.log(`\nGuessing the next most probable word: ${chalk.rgb(0, 255, 255).bold(wordleGuess.toUpperCase())}\n`);
         } catch (error: any) {
             console.log(error.message);
             console.log(`Used Letters: ${chalk.rgb(0, 255, 255).bold([...usedLetters].join(' '))} `);
