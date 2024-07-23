@@ -32,7 +32,7 @@ export const getWordRank = async (word: string): Promise<string> => {
 
         if (err instanceof HTTPError && err.response.statusCode === 429) {
             console.log('Sleeping for 5 seconds...');
-            await new Promise<void>((r) => setTimeout(r, 5_000))
+            await new Promise<void>((r) => setTimeout(r, 5_000));
 
             return getWordRank(word);
         }

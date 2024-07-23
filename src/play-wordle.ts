@@ -25,7 +25,7 @@ const playWordle = async (): Promise<[number, string]> => {
     const guesses: Array<Array<LetterGuessResult>> = [];
 
     let i = 1;
-    while (i < 13) {
+    while (i < 7) {
         try {
             const guess: string = prompt(`Make your guess #${i}: `);
             const guessResult = checkWord(guess.toLowerCase(), wordleWord);
