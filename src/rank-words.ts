@@ -15,7 +15,7 @@ const httpClient = got.extend({
 })
 
 export const getWordRank = async (word: string): Promise<string> => {
-    const url = `https://api.datamuse.com/words?sp=${word}&md=f&max=1`
+    const url = `https://api.datamuse.com/words?sp=${word}&md=df&max=1`
 
     try {
         const response = JSON.parse((await httpClient.get(url)).body);
@@ -23,7 +23,15 @@ export const getWordRank = async (word: string): Promise<string> => {
         if (response.length === 0) {
             console.error(`No results found for ${word}`);
 
-            return '0';
+            return '0.000000';
+        }
+        
+        if (word.endsWith('s')) {
+            const isPlural = response[0]?.defHeadword ? !response[0].defHeadword.endsWith('s') : false;
+
+            if (isPlural) {
+                return '0.000000';
+            }
         }
 
         return response[0].tags[0].split(':')[1];
@@ -66,4 +74,4 @@ export const createWordRanks = async () => {
     rl.close();
 }
 
-await createWordRanks();
+// await createWordRanks();

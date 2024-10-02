@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { createRequire } from "module";
-import { GLOBAL_WORD_RANKS, initWordsList, LetterGuessResult, reducePossibleWords, runWordle } from "./wordle.js";
+import { GLOBAL_WORD_RANKS, initWordsList, LetterGuessResult, reducePossibleWords } from "./wordle.js";
 const require = createRequire(import.meta.url);
 const prompt = require('prompt-sync')({ sigint: true });
 
